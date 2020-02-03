@@ -14,9 +14,8 @@ struct Layout {
         
         var numberOfItem: Int {
             switch self {
-            case .leadingLarge: return 3
+            case .leadingLarge, .trailingLarge: return 3
             case .spread: return 6
-            case .trailingLarge: return 3
             }
         }
         
@@ -34,22 +33,23 @@ struct Layout {
         var items: [[Item]] = []
         
         init(_ items: [Item]) {
-            var layoutKind: Kind = .leadingLarge
+            var kind: Kind = .leadingLarge
             var tmpItems: [Item] = []
             
             for item in items {
-                if tmpItems.count == layoutKind.numberOfItem {
-                    self.sections.append(layoutKind)
-                    self.items.append(tmpItems)
-                    layoutKind = layoutKind.next
+                if tmpItems.count == kind.numberOfItem {
+                    commit(kind, tmpItems)
+                    kind = kind.next
                     tmpItems = []
-                    
                 }
                 tmpItems.append(item)
             }
-            
-            self.sections.append(layoutKind)
-            self.items.append(tmpItems)
+            commit(kind, tmpItems)
+        }
+        
+        private mutating func commit(_ kind: Kind, _ items: [Item]) {
+            self.sections.append(kind)
+            self.items.append(items)
         }
     }
     
@@ -89,7 +89,7 @@ struct Layout {
             
             let nestedGroup = NSCollectionLayoutGroup.horizontal(
                 layoutSize: NSCollectionLayoutSize(widthDimension: .fractionalWidth(1.0),
-                                                   heightDimension: .fractionalHeight(0.4)),
+                                                   heightDimension: .fractionalHeight(0.4)), // CollectionViewの高さの4/10
                 subitems: nestedGroupItems
             )
             return NSCollectionLayoutSection(group: nestedGroup)

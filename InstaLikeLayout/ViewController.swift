@@ -9,31 +9,29 @@
 import UIKit
 
 class ViewController: UIViewController {
-
     @IBOutlet weak var collectionView: UICollectionView!
     
-    private var layoutData = Layout.Model((0..<1000).map { Item(name: "\($0)") })
+    private let layoutModel = Layout.Model((0..<1000).map { Item(name: "\($0)") })
     
     override func viewDidLoad() {
         super.viewDidLoad()
-        self.collectionView.setCollectionViewLayout(Layout.build(for: layoutData), animated: false)
+        self.collectionView.setCollectionViewLayout(Layout.build(for: layoutModel), animated: false)
         self.collectionView.dataSource = self
     }
 }
 
 extension ViewController: UICollectionViewDataSource {
     func numberOfSections(in collectionView: UICollectionView) -> Int {
-        layoutData.sections.count
+        layoutModel.sections.count
     }
     
     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
-        layoutData.items[section].count
+        layoutModel.items[section].count
     }
     
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
-        let item = layoutData.items[indexPath.section][indexPath.item]
         let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "CollectionViewCell", for: indexPath) as! CollectionViewCell
-        return cell.configured(for: item)
+        return cell.configured(for: layoutModel.items[indexPath.section][indexPath.item])
     }
 }
 
