@@ -18,11 +18,6 @@ struct Layout {
             case .spread1, .spread2: return 6
             }
         }
-        
-        var next: Self {
-            // 定義されている順番で表示する
-            Self(rawValue: self.rawValue + 1 == Self.allCases.count ? 0 : self.rawValue + 1)!
-        }
     }
     
     struct Section<Item: Hashable>: Hashable {
@@ -30,23 +25,8 @@ struct Layout {
         let kind: Kind
         let items: [Item]
         
-        /// Layout.Kindで定義されている1セクションに表示するセルの数ごとに分割していく
-        static func buildSections(for items: [Item]) -> [Section<Item>] {
-            var sections = [Section<Item>]()
-            
-            var kind: Kind = .leadingLarge
-            var tmpItems: [Item] = []
-            for item in items {
-                if tmpItems.count == kind.numberOfItemsInSection {
-                    sections.append(.init(kind: kind, items: tmpItems))
-                    kind = kind.next
-                    tmpItems = []
-                }
-                tmpItems.append(item)
-            }
-            sections.append(.init(kind: kind, items: tmpItems))
-            
-            return sections
+        static func build(_ items: [Item], with strategy: LayoutStrategy) -> [Section<Item>] {
+            strategy.buildSections(for: items)
         }
     }
     

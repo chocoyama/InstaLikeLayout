@@ -26,7 +26,7 @@ class ViewController: UIViewController {
                     blue: (CGFloat(arc4random_uniform(255)) + 1) / 255,
                     alpha: 1.0)
         }
-        return Layout.Section.buildSections(for: colors)
+        return Layout.Section.build(colors, with: RegularOrderLayoutStrategy())
     }()
     
     private lazy var dataSource = UICollectionViewDiffableDataSource<Section, Item>(collectionView: collectionView) { (collectionView, indexPath, color) -> UICollectionViewCell? in
