@@ -10,87 +10,76 @@ import UIKit
 
 struct Layout {
     enum Kind: Int, CaseIterable {
-        case leadingLarge, spread, trailingLarge
+        case leadingLarge, spread1, trailingLarge, spread2
         
-        var numberOfItem: Int {
+        var numberOfItemsInSection: Int {
             switch self {
             case .leadingLarge, .trailingLarge: return 3
-            case .spread: return 6
+            case .spread1, .spread2: return 6
             }
         }
         
         var next: Self {
-            switch self {
-            case .leadingLarge: return .spread
-            case .spread: return .trailingLarge
-            case .trailingLarge: return .leadingLarge
-            }
+            // 定義されている順番で表示する
+            Self(rawValue: self.rawValue + 1 == Self.allCases.count ? 0 : self.rawValue + 1)!
         }
     }
     
-    struct Model<Item> {
-        var sections: [Kind] = []
-        var items: [[Item]] = []
+    struct Section<Item: Hashable>: Hashable {
+        let id = UUID()
+        let kind: Kind
+        let items: [Item]
         
-        init(_ items: [Item]) {
+        /// Layout.Kindで定義されている1セクションに表示するセルの数ごとに分割していく
+        static func buildSections(for items: [Item]) -> [Section<Item>] {
+            var sections = [Section<Item>]()
+            
             var kind: Kind = .leadingLarge
             var tmpItems: [Item] = []
-            
             for item in items {
-                if tmpItems.count == kind.numberOfItem {
-                    commit(kind, tmpItems)
+                if tmpItems.count == kind.numberOfItemsInSection {
+                    sections.append(.init(kind: kind, items: tmpItems))
                     kind = kind.next
                     tmpItems = []
                 }
                 tmpItems.append(item)
             }
-            commit(kind, tmpItems)
-        }
-        
-        private mutating func commit(_ kind: Kind, _ items: [Item]) {
-            self.sections.append(kind)
-            self.items.append(items)
+            sections.append(.init(kind: kind, items: tmpItems))
+            
+            return sections
         }
     }
     
-    static func build<Item>(for model: Model<Item>) -> UICollectionViewCompositionalLayout {
+    /// GroupはItemをまとめるもので、初期化時にGroup自体のレイアウトサイズを決定する
+    /// Item内で指定するLayoutSizeはこのGroupのレイアウトサイズを基準に決定されることになる
+    /// Groupのネストをする場合は、親のGroupのレイアウトサイズが基準になり、それをベースに子Group, Itemのレイアウトサイズが決定されていく
+    static func build<Item>(for sections: [Section<Item>]) -> UICollectionViewCompositionalLayout {
         UICollectionViewCompositionalLayout { (sectionIndex: Int, layoutEnvironment: NSCollectionLayoutEnvironment) -> NSCollectionLayoutSection? in
             let largeItem = NSCollectionLayoutItem(
-                layoutSize: NSCollectionLayoutSize(widthDimension: .fractionalWidth(2/3),
-                                                   heightDimension: .fractionalHeight(1.0))
+                layoutSize: NSCollectionLayoutSize(widthDimension: .fractionalWidth(2/3), // 幅：CollectionViewの幅の2/3
+                                                   heightDimension: .fractionalHeight(1.0)) // 高さ：CollectionViewの高さに合わせる
             )
             
-            let spreadGroup = NSCollectionLayoutGroup.vertical(
-                layoutSize: NSCollectionLayoutSize(widthDimension: .fractionalWidth(1/3),
-                                                   heightDimension: .fractionalHeight(1.0)),
-                subitem: NSCollectionLayoutItem(
-                    layoutSize: NSCollectionLayoutSize(widthDimension: .fractionalWidth(1.0),
-                                                       heightDimension: .fractionalHeight(1/3))
-                ),
-                count: 2
-            )
-
             let smallGroup = NSCollectionLayoutGroup.vertical(
-                layoutSize: NSCollectionLayoutSize(widthDimension: .fractionalWidth(1/3),
-                                                   heightDimension: .fractionalHeight(1.0)),
+                layoutSize: NSCollectionLayoutSize(widthDimension: .fractionalWidth(1/3), // 幅：CollectionViewの幅の1/3
+                                                   heightDimension: .fractionalHeight(1.0)), // 高さ：CollectionViewの高さに合わせる
                 subitem: NSCollectionLayoutItem(
-                    layoutSize: NSCollectionLayoutSize(widthDimension: .fractionalWidth(1.0),
-                                                       heightDimension: .fractionalHeight(1/3))
+                    layoutSize: NSCollectionLayoutSize(widthDimension: .fractionalWidth(1.0), // 幅：Groupの幅のに合わせる
+                                                       heightDimension: .fractionalHeight(1.0)) // 高さ: Groupの高さをcountで割った値にする
                 ),
                 count: 2
             )
-
-            let nestedGroupItems: [NSCollectionLayoutItem]
-            switch model.sections[sectionIndex] {
-            case .leadingLarge: nestedGroupItems = [largeItem, smallGroup]
-            case .spread: nestedGroupItems = [spreadGroup, spreadGroup, spreadGroup]
-            case .trailingLarge: nestedGroupItems = [smallGroup, largeItem]
-            }
             
             let nestedGroup = NSCollectionLayoutGroup.horizontal(
-                layoutSize: NSCollectionLayoutSize(widthDimension: .fractionalWidth(1.0),
+                layoutSize: NSCollectionLayoutSize(widthDimension: .fractionalWidth(1.0), // CollectionViewの幅に合わせる
                                                    heightDimension: .fractionalHeight(0.4)), // CollectionViewの高さの4/10
-                subitems: nestedGroupItems
+                subitems: {
+                    switch sections[sectionIndex].kind {
+                    case .leadingLarge: return [largeItem, smallGroup]
+                    case .spread1, .spread2: return [smallGroup, smallGroup, smallGroup]
+                    case .trailingLarge: return [smallGroup, largeItem]
+                    }
+                }()
             )
             return NSCollectionLayoutSection(group: nestedGroup)
         }

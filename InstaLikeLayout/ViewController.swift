@@ -9,38 +9,39 @@
 import UIKit
 
 class ViewController: UIViewController {
-    @IBOutlet weak var collectionView: UICollectionView!
+    @IBOutlet weak var collectionView: UICollectionView! {
+        didSet {
+            self.collectionView.setCollectionViewLayout(Layout.build(for: sections), animated: false)
+            self.collectionView.dataSource = dataSource
+        }
+    }
     
-    private let layoutModel = Layout.Model((0..<1000).map { Item(name: "\($0)") })
+    typealias Section = Layout.Section<UIColor>
+    typealias Item = UIColor
+    
+    private let sections: [Section] = {
+        let colors = (0..<1000).map { _ in
+            UIColor(red: (CGFloat(arc4random_uniform(255)) + 1) / 255,
+                    green: (CGFloat(arc4random_uniform(255)) + 1) / 255,
+                    blue: (CGFloat(arc4random_uniform(255)) + 1) / 255,
+                    alpha: 1.0)
+        }
+        return Layout.Section.buildSections(for: colors)
+    }()
+    
+    private lazy var dataSource = UICollectionViewDiffableDataSource<Section, Item>(collectionView: collectionView) { (collectionView, indexPath, color) -> UICollectionViewCell? in
+        let cell = collectionView.dequeueReusableCell(withReuseIdentifier: String(describing: CollectionViewCell.self), for: indexPath) as! CollectionViewCell
+        cell.set(title: "\(indexPath.section)-\(indexPath.item)", color: color)
+        return cell
+    }
     
     override func viewDidLoad() {
         super.viewDidLoad()
-        self.collectionView.setCollectionViewLayout(Layout.build(for: layoutModel), animated: false)
-        self.collectionView.dataSource = self
+        var snapshot = NSDiffableDataSourceSnapshot<Section, Item>()
+        snapshot.appendSections(sections)
+        sections.forEach { snapshot.appendItems($0.items, toSection: $0) }
+        dataSource.apply(snapshot, animatingDifferences: false, completion: nil)
     }
-}
-
-extension ViewController: UICollectionViewDataSource {
-    func numberOfSections(in collectionView: UICollectionView) -> Int {
-        layoutModel.sections.count
-    }
-    
-    func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
-        layoutModel.items[section].count
-    }
-    
-    func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
-        let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "CollectionViewCell", for: indexPath) as! CollectionViewCell
-        return cell.configured(for: layoutModel.items[indexPath.section][indexPath.item])
-    }
-}
-
-struct Item {
-    let name: String
-    let color = UIColor(red: (CGFloat(arc4random_uniform(255)) + 1) / 255,
-                        green: (CGFloat(arc4random_uniform(255)) + 1) / 255,
-                        blue: (CGFloat(arc4random_uniform(255)) + 1) / 255,
-                        alpha: 1.0)
 }
 
 class CollectionViewCell: UICollectionViewCell {
@@ -51,9 +52,9 @@ class CollectionViewCell: UICollectionViewCell {
     }
     
     @discardableResult
-    func configured(for item: Item) -> Self {
-        label.text = item.name
-        backgroundColor = item.color
+    func set(title: String, color: UIColor) -> Self {
+        label.text = title
+        backgroundColor = color
         return self
     }
 }
